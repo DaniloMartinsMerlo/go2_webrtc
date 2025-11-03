@@ -130,7 +130,7 @@ async def lidar_webrtc_connection():
 
     while retry_attempts < MAX_RETRY_ATTEMPTS:
         try:
-            conn = UnitreeWebRTCConnection(WebRTCConnectionMethod.LocalSTA, ip="192.168.123.161")  # WebRTC IP
+            conn = UnitreeWebRTCConnection(WebRTCConnectionMethod.LocalSTA, ip="192.168.0.189")  # WebRTC IP
             # _webrtc_connection = UnitreeWebRTCConnection(WebRTCConnectionMethod.Remote, serialNumber="B42D2000XXXXXXXX", username="email@gmail.com", password="pass")
             # _webrtc_connection = UnitreeWebRTCConnection(WebRTCConnectionMethod.LocalAP)
 
