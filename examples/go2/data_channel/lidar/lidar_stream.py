@@ -21,8 +21,8 @@ async def main():
         await conn.datachannel.disableTrafficSaving(True)
 
         # set the decoder type (libvoxel or native)
-        conn.datachannel.set_decoder(decoder_type='libvoxel')
-        # conn.datachannel.set_decoder(decoder_type='native')
+        # conn.datachannel.set_decoder(decoder_type='libvoxel')
+        conn.datachannel.set_decoder(decoder_type='native')
 
         # Publish a message to turn the LIDAR sensor on.
         conn.datachannel.pub_sub.publish_without_callback("rt/utlidar/switch", "on")
