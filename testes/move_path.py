@@ -31,7 +31,7 @@ async def main():
                     Go2.stop()
 
                 case "Hard Stop":
-                    Go2.hard_stop(**commands)
+                    Go2.hard_stop()
                 
 
     except ValueError as e:
