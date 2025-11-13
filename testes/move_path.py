@@ -3,6 +3,7 @@ import json
 import logging
 import sys
 from go2_controller import Go2Controller
+from unitree_webrtc_connect.webrtc_driver import UnitreeWebRTCConnection, WebRTCConnectionMethod
 
 WAYPOINTS_PATH = "waypoints.json"
 logging.basicConfig(level=logging.INFO)
@@ -61,9 +62,11 @@ async def execute_command(go2: Go2Controller, cmd):
             logging.warning(f"[Consumer] Comando desconhecido: {cmd_type}")
 
 async def main():
-    go2 = Go2Controller()
-    await go2.connect("192.168.0.189")
-    await go2.normal()
+    conn = UnitreeWebRTCConnection(WebRTCConnectionMethod.LocalSTA, ip="192.168.0.189")
+    await conn.connect()
+    logging.info("🤖 WebRTC conectado com sucesso")
+
+    go2 = Go2Controller(conn)
 
     def on_motion_complete():
         logging.info("[Callback] Movimento concluído ✅")

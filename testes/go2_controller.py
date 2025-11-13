@@ -11,9 +11,9 @@ def constrain(val, min_val, max_val):
 
 
 class Go2Controller:
-    def __init__(self):
-        self.conn = None
-        self._on_motion_complete = None  # callback opcional
+    def __init__(self, conn):
+        self.conn = conn
+        self._on_motion_complete = None
 
     async def connect(self, ip):
         self.conn = UnitreeWebRTCConnection(WebRTCConnectionMethod.LocalSTA, ip)
