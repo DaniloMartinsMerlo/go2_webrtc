@@ -52,8 +52,10 @@ async def execute_command(go2: Go2Controller, cmd):
     match cmd_type:
         case "Move":
             await go2.move(**params)
+            await go2.stop()
         case "Turn":
             await go2.turn(**params)
+            await go2.stop()
         case "Stop":
             await go2.stop()
         case "Hard Stop":
