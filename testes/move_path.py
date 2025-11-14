@@ -14,6 +14,7 @@ class RobotController:
     def __init__(self):
         self.command_queue = asyncio.Queue()
         self.movement_done = asyncio.Event()
+        self.stop_event = asyncio.Event()
         self.current_checkpoint_index = 0
         self.checkpoint_names = []
         self.waypoints_data = {}
@@ -53,9 +54,14 @@ class RobotController:
         return True
 
     async def execute_command(self, cmd):
+        """Executa um comando, respeitando o stop_event"""
         cmd_type = cmd["cmd"]
         params = cmd.get("params", {})
         logging.info(f"[Executor] '{cmd_type}' com parâmetros {params}")
+
+        if self.stop_event.is_set():
+            logging.warning("[Executor] Stop recebido — abortando comando atual.")
+            return
 
         match cmd_type:
             case "Move":
@@ -72,13 +78,23 @@ class RobotController:
                 logging.warning(f"[Executor] Comando desconhecido: {cmd_type}")
 
     async def consumer(self):
+        """Executa todos os comandos do checkpoint atual"""
         while not self.command_queue.empty():
+            if self.stop_event.is_set():
+                logging.warning("[Consumer] Stop solicitado — interrompendo checkpoint atual.")
+                break
+
             cmd = await self.command_queue.get()
             try:
                 await self.execute_command(cmd)
                 await self.movement_done.wait()
                 self.movement_done.clear()
             finally:
+                self.command_queue.task_done()
+
+        if self.stop_event.is_set():
+            while not self.command_queue.empty():
+                self.command_queue.get_nowait()
                 self.command_queue.task_done()
 
         logging.info(f"[Checkpoint {self.checkpoint_names[self.current_checkpoint_index]}] finalizado ✅")
@@ -94,6 +110,8 @@ class RobotController:
             logging.info("🏁 Todos os checkpoints foram executados.")
             return {"status": "finished"}
 
+        self.stop_event.clear()
+
         await self.populate_queue_for_checkpoint(self.current_checkpoint_index)
         self.is_running = True
         asyncio.create_task(self.consumer())
@@ -102,18 +120,31 @@ class RobotController:
             "checkpoint": self.checkpoint_names[self.current_checkpoint_index]
         }
 
-    def get_status(self):
-        return {
-            "running": self.is_running,
-            "current_checkpoint": (
-                self.checkpoint_names[self.current_checkpoint_index]
-                if self.current_checkpoint_index < len(self.checkpoint_names)
-                else None
-            ),
-            "remaining": len(self.checkpoint_names) - self.current_checkpoint_index,
-        }
+    async def emergency_stop(self):
+        """Para tudo imediatamente"""
+        logging.warning("🛑 Recebido STOP — interrompendo robô.")
+        self.stop_event.set()
+
+        try:
+            await self.go2.stop()
+            await self.go2.hard_stop()
+            logging.info("✅ Robô parado com segurança (stop + hard_stop).")
+        except Exception as e:
+            logging.error(f"Erro ao parar o robô: {e}")
+
+        # limpa fila
+        while not self.command_queue.empty():
+            self.command_queue.get_nowait()
+            self.command_queue.task_done()
+
+        self.is_running = False
+
+        return {"status": "stopped"}
 
 
+# -------------------------------
+# Rotas HTTP
+# -------------------------------
 async def handle_play(request):
     robot: RobotController = request.app["robot"]
     result = await robot.play_next_checkpoint()
@@ -125,10 +156,20 @@ async def handle_status(request):
     return web.json_response(robot.get_status())
 
 
+async def handle_stop(request):
+    robot: RobotController = request.app["robot"]
+    result = await robot.emergency_stop()
+    return web.json_response(result)
+
+
+# -------------------------------
+# Servidor interno do robô
+# -------------------------------
 async def start_web_server(robot: RobotController):
     app = web.Application()
     app["robot"] = robot
     app.router.add_post("/play", handle_play)
+    app.router.add_post("/stop", handle_stop)
     app.router.add_get("/status", handle_status)
 
     runner = web.AppRunner(app)
@@ -138,12 +179,15 @@ async def start_web_server(robot: RobotController):
     logging.info("🌐 Servidor do robô ouvindo em http://localhost:8080")
 
 
+# -------------------------------
+# MAIN
+# -------------------------------
 async def main():
     robot = RobotController()
     await robot.initialize()
     await start_web_server(robot)
 
-    logging.info("⏸️ Aguardando comandos /play ou /status...")
+    logging.info("⏸️ Aguardando comandos /play, /stop ou /status...")
     while True:
         await asyncio.sleep(3600)
 
