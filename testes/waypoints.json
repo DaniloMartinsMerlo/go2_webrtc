@@ -1,18 +1,45 @@
-[
-  {
-    "cmd": "Move",
-    "params": {
-      "x_speed": 1,
-      "x_distance": 1,
-      "y_speed": 0,
-      "y_distance": 0
+{
+  "checkpoint1": [
+    {
+      "cmd": "Move",
+      "params": {
+        "x_speed": 1,
+        "x_distance": 2,
+        "y_speed": 0,
+        "y_distance": 0
+      }
+    },
+    {
+      "cmd": "Turn",
+      "params": {
+        "z_speed": 1,
+        "z_degrees": 90
+      }
+    },
+    {
+      "cmd": "Turn",
+      "params": {
+        "z_speed": 1,
+        "z_degrees": 90
+      }
     }
-  },
-  {
-    "cmd": "Turn",
-    "params": {
-      "z_speed": 1,
-      "z_degrees": 90
+  ],
+  "checkpoint2": [
+    {
+      "cmd": "Move",
+      "params": {
+        "x_speed": 1,
+        "x_distance": 1,
+        "y_speed": 0,
+        "y_distance": 0
+      }
+    },
+    {
+      "cmd": "Turn",
+      "params": {
+        "z_speed": 1,
+        "z_degrees": -90
+      }
     }
-  }
-]
+  ]
+}
