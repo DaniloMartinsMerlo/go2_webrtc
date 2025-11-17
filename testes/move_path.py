@@ -127,8 +127,8 @@ class RobotController:
 
         try:
             await self.go2.stop()
-            await self.go2.hard_stop()
-            logging.info("✅ Robô parado com segurança (stop + hard_stop).")
+            await self.go2.stand()
+            logging.info("✅ Robô parado com segurança (stop + stand).")
         except Exception as e:
             logging.error(f"Erro ao parar o robô: {e}")
 

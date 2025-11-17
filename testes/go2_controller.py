@@ -112,3 +112,13 @@ class Go2Controller:
         await asyncio.sleep(1)
         if self._on_motion_complete:
             self._on_motion_complete()
+
+    async def stand(self):
+        await self.conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"],
+            {"api_id": SPORT_CMD["StandUp"]}
+        )
+        await asyncio.sleep(1)
+        if self._on_motion_complete:
+            self._on_motion_complete()
+            
