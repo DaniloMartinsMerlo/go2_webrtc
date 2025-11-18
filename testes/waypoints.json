@@ -1,58 +1,45 @@
 {
-    "comand_1":[
-        {
-            "cmd": "Move",
-            
-            "x_speed": 0,
-            "x_distance": 0,
-            
-            "y_speed": 0,
-            "y_distance": 0,
-
-            "z_speed": 0,
-            "z_degrees": 0
-        }
-    ],
-    "comand_2":[
-        {
-            "cmd": "Turn",
-
-            "x_speed": 0,
-            "x_distance": 0,
-            
-            "y_speed": 0,
-            "y_distance": 0,
-
-            "z_speed": 0,
-            "z_degrees": 0
-        }
-    ],
-    "comand_3":[
-        {
-            "cmd": "Stop",
-            
-            "x_speed": 0,
-            "x_distance": 0,
-            
-            "y_speed": 0,
-            "y_distance": 0,
-
-            "z_speed": 0,
-            "z_degrees": 0
-        }
-    ],
-    "comand_4":[
-        {
-            "cmd": "Hard Stop",
-            
-            "x_speed": 0,
-            "x_distance": 0,
-            
-            "y_speed": 0,
-            "y_distance": 0,
-
-            "z_speed": 0,
-            "z_degrees": 0
-        }
-    ]
+  "checkpoint1": [
+    {
+      "cmd": "Move",
+      "params": {
+        "x_speed": 1,
+        "x_distance": 2,
+        "y_speed": 0,
+        "y_distance": 0
+      }
+    },
+    {
+      "cmd": "Turn",
+      "params": {
+        "z_speed": 1,
+        "z_degrees": 90
+      }
+    },
+    {
+      "cmd": "Turn",
+      "params": {
+        "z_speed": 1,
+        "z_degrees": 90
+      }
+    }
+  ],
+  "checkpoint2": [
+    {
+      "cmd": "Move",
+      "params": {
+        "x_speed": 1,
+        "x_distance": 1,
+        "y_speed": 0,
+        "y_distance": 0
+      }
+    },
+    {
+      "cmd": "Turn",
+      "params": {
+        "z_speed": 1,
+        "z_degrees": -90
+      }
+    }
+  ]
 }

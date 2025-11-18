@@ -13,44 +13,61 @@ async def main():
         conn = UnitreeWebRTCConnection(WebRTCConnectionMethod.LocalSTA, ip="192.168.0.189")
         await conn.connect()
 
-        # print("Robot connected, checking current motion mode...")
-        # response = await conn.datachannel.pub_sub.publish_request_new(
-        #     RTC_TOPIC["MOTION_SWITCHER"], 
-        #     {"api_id": 1001}
-        # )
-
-        # if response['data']['header']['status']['code'] == 0:
-        #     data = json.loads(response['data']['data'])
-        #     current_motion_switcher_mode = data['name']
-        #     print(f"Current motion mode: {current_motion_switcher_mode}")
-
-        # if current_motion_switcher_mode != "normal":
-        #     print(f"Switching motion mode from {current_motion_switcher_mode} to 'normal'...")
-        #     await conn.datachannel.pub_sub.publish_request_new(
-        #         RTC_TOPIC["MOTION_SWITCHER"], 
-        #         {
-        #             "api_id": 1002,
-        #             "parameter": {"name": "normal"}
-        #         }
-        #     )
-        #     await asyncio.sleep(10)
-
-        movement_duration = 2
+        movement_duration = 1.5
         start_time = time.time()
-        end_time = start_time + movement_duration
+        foward_time = start_time + movement_duration
 
-        print(f"Starting forward movement for {movement_duration} seconds")
+        print(f"\n Starting forward movement for {movement_duration} seconds \n")
+        
+        while time.time() <= foward_time:
+            await conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], 
+                {
+                    "api_id": SPORT_CMD["Move"],
+                    "parameter": {"x": 1, "y": 0, "z": 0}
+                }
+            )
+            await asyncio.sleep(0.95)
 
-        avoid_set = await conn.datachannel.pub_sub.publish_request_new(
-            RTC_TOPIC["OBSTACLES_AVOID"], 
+        await conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], 
             {
-                "api_id": 1001,
-                "parameter": {"enable": True}
+                "api_id": SPORT_CMD["StopMove"]
             }
         )
-        print(avoid_set)
+
+        time.sleep(3)
+
+        print("Turning \n")        
+
+        movement_duration = 3
+        start_time = time.time()
+        turn_time = start_time + movement_duration
+
+        while time.time() <= turn_time:
+
+            await conn.datachannel.pub_sub.publish_request_new(
+                RTC_TOPIC["SPORT_MOD"], 
+                {
+                    "api_id": SPORT_CMD["Move"],
+                    "parameter": {"x": 0, "y": 0, "z": -1}
+                }
+            )
+            
+            await asyncio.sleep(0.95)
         
-        while time.time() <= end_time:
+        await conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], 
+            {
+                "api_id": SPORT_CMD["StopMove"]
+            }
+        )
+
+        movement_duration = 1.5
+        start_time = time.time()
+        foward_time = start_time + movement_duration
+
+        while time.time() <= foward_time:
 
             await conn.datachannel.pub_sub.publish_request_new(
                 RTC_TOPIC["SPORT_MOD"], 
@@ -61,19 +78,16 @@ async def main():
             )
             
             await asyncio.sleep(0.95)
-            
-            avoid_read = await conn.datachannel.pub_sub.publish_request_new(
-                RTC_TOPIC["OBSTACLES_AVOID"], 
-                {
-                    "api_id": 1002,
-                    # "parameter": {"enable": True}
-                }
-            )
-
-            print(avoid_read)
-            
-        print("Done.")
-
+        
+        await conn.datachannel.pub_sub.publish_request_new(
+            RTC_TOPIC["SPORT_MOD"], 
+            {
+                "api_id": SPORT_CMD["StopMove"]
+            }
+        )
+        
+        print("Done.\n")
+        
     except ValueError as e:
         logging.error(f"An error occurred: {e}")
 
