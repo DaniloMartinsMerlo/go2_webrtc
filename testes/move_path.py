@@ -98,6 +98,10 @@ class RobotController:
                 self.command_queue.task_done()
 
         logging.info(f"[Checkpoint {self.checkpoint_names[self.current_checkpoint_index]}] finalizado ✅")
+        await self.go2.audio(f"audios/checkpoint{self.current_checkpoint_index}.mp3")
+        await self.movement_done.wait()
+        self.movement_done.clear()
+
         self.is_running = False
         self.current_checkpoint_index += 1
 

@@ -4,7 +4,7 @@
       "cmd": "Move",
       "params": {
         "x_speed": 1,
-        "x_distance": 2,
+        "x_distance": 7,
         "y_speed": 0,
         "y_distance": 0
       }
@@ -13,14 +13,16 @@
       "cmd": "Turn",
       "params": {
         "z_speed": 1,
-        "z_degrees": 90
+        "z_degrees": 30
       }
     },
     {
-      "cmd": "Turn",
+      "cmd": "Move",
       "params": {
-        "z_speed": 1,
-        "z_degrees": 90
+        "x_speed": 1,
+        "x_distance": 6,
+        "y_speed": 0,
+        "y_distance": 0
       }
     }
   ],
@@ -29,16 +31,9 @@
       "cmd": "Move",
       "params": {
         "x_speed": 1,
-        "x_distance": 1,
+        "x_distance": 0.5,
         "y_speed": 0,
         "y_distance": 0
-      }
-    },
-    {
-      "cmd": "Turn",
-      "params": {
-        "z_speed": 1,
-        "z_degrees": -90
       }
     }
   ]

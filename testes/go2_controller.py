@@ -1,9 +1,12 @@
 import asyncio
+import logging
 import json
 import time
+import os
 import math
 from unitree_webrtc_connect.webrtc_driver import UnitreeWebRTCConnection, WebRTCConnectionMethod
 from unitree_webrtc_connect.constants import RTC_TOPIC, SPORT_CMD
+from aiortc.contrib.media import MediaPlayer
 
 
 def constrain(val, min_val, max_val):
@@ -121,4 +124,25 @@ class Go2Controller:
         await asyncio.sleep(1)
         if self._on_motion_complete:
             self._on_motion_complete()
-            
+    
+    async def audio(self, path):
+        mp3_path = os.path.join(os.path.dirname(__file__), path)
+
+        if not os.path.exists(mp3_path):
+            logging.warning(f"⚠️ Arquivo de áudio não encontrado: {mp3_path}")
+            return
+
+        logging.info(f"🎵 Tocando áudio: {mp3_path}")
+        player = MediaPlayer(mp3_path)
+        audio_track = player.audio
+        self.conn.pc.addTrack(audio_track)
+
+        while True:
+            if player._process and player._process.poll() is not None:
+                break
+            await asyncio.sleep(0.2)
+
+        logging.info("✅ Áudio finalizado.")
+
+        if self._on_motion_complete:
+            self._on_motion_complete()
