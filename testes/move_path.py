@@ -141,6 +141,22 @@ class RobotController:
 
         return {"status": "stopped"}
 
+    async def robot_kill(self):
+        self.stop_event.set()
+        try:
+            await self.go2.hard_stop()
+            logging.info("🛑 Matando o robô")
+        except Exception as e:
+            logging.error(f"Erro ao parar o robô: {e}")
+
+        while not self.command_queue.empty():
+            self.command_queue.get_nowait()
+            self.command_queue.task_done()
+
+        self.is_running = False
+
+        return {"status": "stopped"}
+
 
 # -------------------------------
 # Rotas HTTP
@@ -161,6 +177,11 @@ async def handle_stop(request):
     result = await robot.emergency_stop()
     return web.json_response(result)
 
+async def handle_kill(request):
+    robot: RobotController = request.app["robot"]
+    result = await robot.robot_kill()
+    return web.json_response(result)
+
 
 # -------------------------------
 # Servidor interno do robô
@@ -171,6 +192,7 @@ async def start_web_server(robot: RobotController):
     app.router.add_post("/play", handle_play)
     app.router.add_post("/stop", handle_stop)
     app.router.add_get("/status", handle_status)
+    app.router.add_post("/kill", handle_kill)
 
     runner = web.AppRunner(app)
     await runner.setup()

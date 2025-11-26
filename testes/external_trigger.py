@@ -21,7 +21,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Cliente para controle do robô")
     parser.add_argument(
         "action",
-        choices=["play", "stop"],
+        choices=["play", "stop", "kill"],
         help="Ação a ser enviada ao robô"
     )
     args = parser.parse_args()
