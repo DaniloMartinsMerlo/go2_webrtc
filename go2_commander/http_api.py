@@ -1,4 +1,5 @@
 # go2_commander/http_api.py
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -9,6 +10,10 @@ class CheckpointRequest(BaseModel):
 
 class HoldRequest(BaseModel):
     enabled: bool
+
+
+class MapRequest(BaseModel):
+    name: str
 
 
 def create_app(core):
@@ -42,6 +47,12 @@ def create_app(core):
     @app.post("/set_hold")
     def set_hold(req: HoldRequest):
         ok, msg = core.set_hold(req.enabled)
+        return {"success": ok, "message": msg}
+
+    # 🔥 NEW: LOAD MAP
+    @app.post("/load_map")
+    def load_map(req: MapRequest):
+        ok, msg = core.load_map(req.name)
         return {"success": ok, "message": msg}
 
     @app.get("/status")

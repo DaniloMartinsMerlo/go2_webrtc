@@ -1,10 +1,13 @@
 # go2_commander/commander_core.py
+
 import threading
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
+from slam_toolbox.srv import DeserializePoseGraph
 from waypoint_manager import WaypointManager
+import os
 
 
 class CommanderCore(Node):
@@ -16,23 +19,29 @@ class CommanderCore(Node):
         self.navigator.waitUntilNav2Active(localizer="bt_navigator")
         self.get_logger().info("Nav2 ativo!")
 
+        # SLAM Toolbox map loader
+        self.deserialize_client = self.create_client(
+            DeserializePoseGraph,
+            "/slam_toolbox/deserialize_map"
+        )
+
         self.wp = WaypointManager()
 
         # protected state
         self._lock = threading.RLock()
-        self._current_checkpoint = None        # nome do checkpoint alvo/atual
-        self._pending_pose = None              # PoseStamped que será enviada no próximo tick
+        self._current_checkpoint = None
+        self._pending_pose = None
         self._pending_name = None
         self._navigating = False
         self._hold_enabled = False
         self._last_message = ""
 
-        # timer ROS que executa na thread do rclpy.spin()
+        # ROS timer controls navigation safely
         self.create_timer(0.2, self._nav_tick)
 
-    # ----------------------------
+    # -------------------------------------------------------------
     # Waypoints
-    # ----------------------------
+    # -------------------------------------------------------------
     def load_waypoints(self, filename: str):
         names = self.wp.load(filename)
         with self._lock:
@@ -40,9 +49,51 @@ class CommanderCore(Node):
         self.get_logger().info(self._last_message)
         return names
 
-    # ----------------------------
+    # -------------------------------------------------------------
+    # Deserialize SLAM Toolbox map
+    # -------------------------------------------------------------
+    def load_map(self, map_name: str):
+        """
+        Loads a map saved via RViz2 → SLAM Toolbox serialize_map.
+        Expected file: <map_name>.posegraph
+        """
+        with self._lock:
+            if self._navigating:
+                self.navigator.cancelTask()
+                self._navigating = False
+
+        filename = f"{map_name}.posegraph"
+        if not os.path.exists(filename):
+            return False, f"Map file '{filename}' not found"
+
+        if not self.deserialize_client.wait_for_service(timeout_sec=2.0):
+            return False, "SLAM Toolbox deserialize service unavailable"
+
+        req = DeserializePoseGraph.Request()
+        req.filename = filename
+
+        # match_type = 1 → exact match
+        req.match_type = 1
+
+        # DO NOT set initial_pose → SLAM restores saved pose
+        req.initial_pose.x = 0.0
+        req.initial_pose.y = 0.0
+        req.initial_pose.theta = 0.0
+
+        future = self.deserialize_client.call_async(req)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is None:
+            return False, "Failed to load map"
+
+        with self._lock:
+            self._last_message = f"Mapa '{map_name}' carregado com sucesso"
+
+        return True, f"Mapa '{map_name}' carregado com sucesso"
+
+    # -------------------------------------------------------------
     # Helpers
-    # ----------------------------
+    # -------------------------------------------------------------
     def _pose_from_payload(self, payload) -> PoseStamped:
         pose = PoseStamped()
         pose.header.frame_id = "map"
@@ -59,32 +110,29 @@ class CommanderCore(Node):
 
         return pose
 
-    # ----------------------------
-    # Timer tick (roda na thread ROS)
-    # ----------------------------
+    # -------------------------------------------------------------
+    # NAVIGATION LOOP — runs safely in ROS thread
+    # -------------------------------------------------------------
     def _nav_tick(self):
-        # start pending goal if exists and not navigating
         with self._lock:
-            if self._pending_pose is not None and not self._navigating:
+
+            # start pending goal
+            if self._pending_pose is not None:
                 pose = self._pending_pose
                 name = self._pending_name
-                # clear pending before calling goToPose to avoid races
+
                 self._pending_pose = None
                 self._pending_name = None
-                self._navigating = True
-                self._current_checkpoint = name
-                self._last_message = f"Dispatched goal -> {name}"
-                self.get_logger().info(self._last_message)
 
-                # start navigation (this will internally use rclpy futures)
+                self.get_logger().info(f"Iniciando navegação → {name}")
                 self.navigator.goToPose(pose)
                 return
 
-        # if navigating, check completion
-        with self._lock:
+            # check completion
             if self._navigating:
                 if self.navigator.isTaskComplete():
                     result = self.navigator.getResult()
+
                     if result == TaskResult.SUCCEEDED:
                         self._last_message = f"Arrived at {self._current_checkpoint}"
                         self.get_logger().info(self._last_message)
@@ -94,11 +142,12 @@ class CommanderCore(Node):
                     else:
                         self._last_message = f"Navigation failed ({self._current_checkpoint})"
                         self.get_logger().error(self._last_message)
+
                     self._navigating = False
 
-    # ----------------------------
-    # Public API (thread-safe; called from HTTP thread)
-    # ----------------------------
+    # -------------------------------------------------------------
+    # PUBLIC API (thread-safe)
+    # -------------------------------------------------------------
     def start_checkpoint(self, name: str):
         with self._lock:
             if self._hold_enabled:
@@ -110,10 +159,14 @@ class CommanderCore(Node):
 
             payload = self.wp.get(name)
             pose = self._pose_from_payload(payload)
+
             self._pending_pose = pose
             self._pending_name = name
-            self._last_message = f"Queued {name}"
-            return True, f"Queued start for {name}"
+            self._current_checkpoint = name
+            self._navigating = True
+            self._last_message = f"Starting navigation → {name}"
+
+            return True, f"Navigation to {name} started"
 
     def start_next(self):
         with self._lock:
@@ -121,13 +174,17 @@ class CommanderCore(Node):
                 return False, "Hold enabled"
             if self.wp.count() == 0:
                 return False, "No waypoints loaded"
+
             if self._current_checkpoint in self.wp.names:
                 idx = self.wp.names.index(self._current_checkpoint) + 1
             else:
                 idx = 0
+
             if idx >= len(self.wp.names):
                 return False, "No next waypoint"
+
             next_name = self.wp.names[idx]
+
         return self.start_checkpoint(next_name)
 
     def pause(self):
@@ -135,8 +192,9 @@ class CommanderCore(Node):
             if not self._navigating:
                 return False, "Not navigating"
             self.navigator.cancelTask()
-            self._last_message = "Pause requested (cancelled goal)"
-            return True, "Paused (cancelled current goal)"
+            self._navigating = False
+            self._last_message = "Paused (goal canceled)"
+            return True, "Paused"
 
     def resume(self):
         with self._lock:
@@ -146,8 +204,9 @@ class CommanderCore(Node):
                 return False, "Already navigating"
             if not self._current_checkpoint:
                 return False, "No checkpoint to resume"
-            # re-queue same checkpoint
+
             name = self._current_checkpoint
+
         return self.start_checkpoint(name)
 
     def cancel(self):
@@ -155,13 +214,22 @@ class CommanderCore(Node):
             if not self._navigating:
                 return False, "Not navigating"
             self.navigator.cancelTask()
+            self._navigating = False
             self._last_message = "Cancel requested"
-            return True, "Cancel requested"
+            return True, "Canceled"
 
     def set_hold(self, enabled: bool):
         with self._lock:
-            self._hold_enabled = bool(enabled)
-            return True, f"Hold set to {self._hold_enabled}"
+            self._hold_enabled = enabled
+
+            if enabled and self._navigating:
+                self.navigator.cancelTask()
+                self._navigating = False
+                self._last_message = "Hold enabled → navigation stopped"
+                return True, "Hold enabled, robot stopped"
+
+            self._last_message = f"Hold set to {enabled}"
+            return True, f"Hold set to {enabled}"
 
     def status(self) -> dict:
         with self._lock:
