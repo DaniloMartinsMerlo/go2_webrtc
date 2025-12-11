@@ -1,0 +1,20 @@
+{
+  "checkpoint1": {
+    "position_x": -3.189,
+    "position_y": 0.127144,
+    "position_z": 0.0,
+    "orientation_x": 0.0,
+    "orientation_y": -0.946997,
+    "orientation_z": 0.321243,
+    "orientation_w": 0.0
+  },
+  "checkpoint2": {
+    "position_x": 3.83457, 
+    "position_y": 6.15766,
+    "position_z": 0.0,
+    "orientation_x": 0.0,
+    "orientation_y": 0.867467, 
+    "orientation_z": 0.497494,
+    "orientation_w": 0.0
+  }
+}
